@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>簡單小遊戲 — 迷宮小遊戲</title>
+  <style>
+    :root{
+      --bg:#0f1720; /* very dark blue-gray */
+      --panel:#0b1320;
+      --muted:#9aa6b2;
+      --accent:#00d1b2; /* teal */
+      --danger:#ff6b6b;
+      --wall:#0b1020; /* near black for walls */
+      --path:#e6f6f1; /* pale mint for path */
+      --text:#e6eef3;
+    }
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,'Noto Sans TC',sans-serif;background:var(--bg);color:var(--text)}
+    .wrap{max-width:1100px;margin:28px auto;padding:20px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;box-shadow:0 8px 30px rgba(2,6,23,0.6)}
+    header{display:flex;align-items:center;justify-content:space-between}
+    h1{margin:0;font-size:20px}
+    .menu{margin-top:18px}
+    .btn{display:inline-block;padding:10px 16px;border-radius:8px;background:var(--accent);color:#05201a;font-weight:600;text-decoration:none;cursor:pointer;border:none}
+    .btn.secondary{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,0.06)}
+    .center{display:flex;gap:12px;align-items:center}
+    .content{display:grid;grid-template-columns:360px 1fr;gap:16px;margin-top:18px}
+    .card{background:var(--panel);padding:14px;border-radius:10px}
+    .card h2{margin:0 0 8px 0}
+    .readme{max-height:560px;overflow:auto;padding-right:8px}
+    .game-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .small{font-size:13px;color:var(--muted)}
+    /* maze grid */
+    .maze-wrap{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+    .maze{display:grid;background:var(--wall);border-radius:6px;overflow:hidden}
+    .cell{width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-weight:700}
+    .cell.path{background:var(--path);color:#02332b}
+    .cell.wall{background:var(--wall);color:var(--wall)}
+    .cell.boundary{background:#07202a;color:var(--path)}
+    .cell.start{background:var(--accent);color:#021613}
+    .cell.end{background:var(--danger);color:#2a0505}
+    .cell.player{outline:2px solid rgba(255,255,255,0.06);box-shadow:0 0 6px rgba(0,0,0,0.6)}
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+    pre{white-space:pre-wrap}
+    @media (max-width:900px){.content{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>簡單小遊戲</h1>
+      <div class="center">
+        <button id="openMaze" class="btn">迷宮小遊戲</button>
+      </div>
+    </header>
+
+    <div id="mainArea" class="menu" style="display:none">
+      <div class="content">
+        <aside class="card">
+          <h2>選單</h2>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+            <button id="showReadme" class="btn secondary">說明</button>
+            <div style="display:flex;gap:8px">
+              <button id="startGame" class="btn">迷宮小遊戲</button>
+              <button id="openMines" class="btn">踩地雷小遊戲</button>
+            </div>
+            <div style="margin-top:8px" class="small">遊戲支援鍵盤與滑鼠操作；按 Q 離開（或按 Esc 回到選單）。</div>
+            <label class="small" style="margin-top:8px">迷宮大小 (N × N)：
+              <input id="sizeInput" type="number" value="15" min="3" style="width:80px;margin-left:8px;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text)">
+            </label>
+            <label class="small" style="margin-top:8px">踩地雷大小 (N × N)：
+              <input id="minesSize" type="number" value="9" min="3" style="width:80px;margin-left:8px;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text)">
+            </label>
+            <label class="small">炸彈數：
+              <input id="bombsInput" type="number" value="10" min="1" style="width:80px;margin-left:8px;padding:6px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--text)">
+            </label>
+          </div>
+        </aside>
+
+        <section>
+          <div id="readmePanel" class="card readme" style="display:none">
+            <!-- README HTML content inserted here -->
+          </div>
+
+          <!-- Maze panel -->
+          <div id="gamePanel" class="card" style="display:none">
+            <div class="game-controls">
+              <div class="small">步數: <span id="steps">0</span></div>
+              <button id="regen" class="btn secondary">重生迷宮</button>
+              <button id="toMenu" class="btn secondary">回主選單</button>
+            </div>
+            <div id="mazeContainer" class="maze-wrap" style="margin-top:10px">
+              <div id="maze" class="maze"></div>
+            </div>
+            <div class="small" style="margin-top:8px">註：每次嘗試移動（包含撞牆或碰邊界）皆計入步數。</div>
+          </div>
+
+          <!-- Minesweeper panel -->
+          <div id="minesPanel" class="card" style="display:none">
+            <div class="game-controls">
+              <div class="small">步數/操作次數: <span id="minesSteps">0</span></div>
+              <button id="regenMines" class="btn secondary">重置地雷</button>
+              <button id="toMenu2" class="btn secondary">回主選單</button>
+            </div>
+            <div id="minesContainer" class="maze-wrap" style="margin-top:10px">
+              <div id="minesGrid" class="maze"></div>
+            </div>
+            <div class="small" style="margin-top:8px">註：左鍵揭露，右鍵標記/取消（標記為 X）；揭露空白會向上下左右延伸。</div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <footer>本頁整合本地 Python 版本說明並以瀏覽器內嵌 JavaScript 實作迷宮互動。若你想執行 Python 版本，請使用 <code>python maze_game.py</code>.</footer>
+  </div>
+
+<script>
+// README HTML content (從 README.md 轉為內嵌 HTML 片段)
+const readmeHtml = `
+<h1>Maze Game</h1>
+<p>一個簡單的文字版迷宮遊戲（Python）。本程式在 Windows 下支援即時鍵盤輸入（WASD 與方向鍵），並提供 demo 自動示範模式。</p>
+<h2>功能</h2>
+<ul>
+<li>指定大小 n，生成 n × n 的完美迷宮（perfect maze，任意兩格間僅有一條路徑）。</li>
+<li>邊界用 <code>#</code> 顯示，牆用 <code>█</code> 表示，通路為空白。</li>
+<li>隨機起點 <code>S</code> 與終點 <code>E</code>（會放在邊界上，且不會放在四個角落）。</li>
+<li>玩家用 <code>P</code> 表示，支援鍵盤 <code>W/A/S/D</code> 與方向鍵移動，按 <code>q</code> 離開。</li>
+<li>每次使用者操作（包含嘗試移動到牆或邊界失敗）都會計入步數並顯示於迷宮下方。</li>
+<li>支援顏色顯示（若已安裝 <code>colorama</code> 套件）。</li>
+</ul>
+<h2>快速開始</h2>
+<pre>python maze_game.py --size 7
+</pre>
+<h2>鍵位</h2>
+<ul>
+<li>w 或 上方向鍵：上</li>
+<li>a 或 左方向鍵：左</li>
+<li>s 或 下方向鍵：下</li>
+<li>d 或 右方向鍵：右</li>
+<li>q：離開遊戲</li>
+</ul>
+<p>注意：在非 Windows 或 msvcrt 不可用時，互動模式會回退為 <code>input()</code> 讀行（需按 Enter）。</p>
+`;
+
+// UI wiring
+const openMaze = document.getElementById('openMaze');
+const mainArea = document.getElementById('mainArea');
+const showReadme = document.getElementById('showReadme');
+const startGame = document.getElementById('startGame');
+const readmePanel = document.getElementById('readmePanel');
+const gamePanel = document.getElementById('gamePanel');
+const mazeEl = document.getElementById('maze');
+const stepsEl = document.getElementById('steps');
+const regen = document.getElementById('regen');
+const toMenu = document.getElementById('toMenu');
+const sizeInput = document.getElementById('sizeInput');
+
+openMaze.addEventListener('click', ()=>{ mainArea.style.display='block'; openMaze.style.display='none'; });
+showReadme.addEventListener('click', ()=>{ readmePanel.style.display='block'; gamePanel.style.display='none'; readmePanel.innerHTML = readmeHtml; });
+startGame.addEventListener('click', ()=>{ startMaze(); });
+regen.addEventListener('click', ()=>{ startMaze(); });
+toMenu.addEventListener('click', ()=>{ gamePanel.style.display='none'; readmePanel.style.display='none'; });
+const openMines = document.getElementById('openMines');
+const minesPanel = document.getElementById('minesPanel');
+const minesGrid = document.getElementById('minesGrid');
+const minesStepsEl = document.getElementById('minesSteps');
+const regenMines = document.getElementById('regenMines');
+const toMenu2 = document.getElementById('toMenu2');
+const minesSize = document.getElementById('minesSize');
+const bombsInput = document.getElementById('bombsInput');
+
+openMines.addEventListener('click', ()=>{ minesPanel.style.display='block'; gamePanel.style.display='none'; readmePanel.style.display='none'; startMines(); });
+regenMines.addEventListener('click', startMines);
+toMenu2.addEventListener('click', ()=>{ minesPanel.style.display='none'; });
+
+// Minesweeper JS implementation (4-direction flood fill)
+let minesState = { n:9, bombs:10, board:null, revealed:null, flagged:null, steps:0 };
+
+function makeMinesBoard(n, bombs){
+  const board = Array.from({length:n}, ()=>Array(n).fill(0));
+  const coords = [];
+  for(let r=0;r<n;r++) for(let c=0;c<n;c++) coords.push([r,c]);
+  // clamp bombs
+  bombs = Math.max(1, Math.min(bombs, n*n-1));
+  for(let i=0;i<bombs;i++){
+    const idx = Math.floor(Math.random()*coords.length);
+    const [r,c] = coords.splice(idx,1)[0];
+    board[r][c] = -1;
+  }
+  for(let r=0;r<n;r++){
+    for(let c=0;c<n;c++){
+      if(board[r][c] === -1) continue;
+      let cnt=0;
+      for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+        if(dr===0 && dc===0) continue;
+        const nr=r+dr, nc=c+dc; if(nr>=0 && nr<n && nc>=0 && nc<n && board[nr][nc]===-1) cnt++;
+      }
+      board[r][c]=cnt;
+    }
+  }
+  return board;
+}
+
+function renderMines(){
+  const n = minesState.n;
+  minesGrid.innerHTML='';
+  minesGrid.style.gridTemplateColumns = `repeat(${n}, 24px)`;
+  minesGrid.style.gridTemplateRows = `repeat(${n}, 24px)`;
+  for(let r=0;r<n;r++){
+    for(let c=0;c<n;c++){
+      const cell = document.createElement('div');
+      cell.className='cell';
+      cell.dataset.r = r; cell.dataset.c = c;
+      const rev = minesState.revealed[r][c];
+      const flag = minesState.flagged[r][c];
+      if(rev){
+        const val = minesState.board[r][c];
+        cell.classList.add('path');
+        if(val===0) cell.textContent='';
+        else if(val>0) { cell.textContent = String(val); }
+        if(minesState.board[r][c]===-1){ cell.textContent='!'; cell.classList.add('end'); }
+      } else {
+        // unrevealed
+        if(flag){ cell.textContent='X'; cell.classList.add('start'); }
+        else { cell.textContent=''; cell.classList.add('wall'); }
+      }
+      // left click
+      cell.addEventListener('click', (ev)=>{ ev.preventDefault(); minesLeftClick(r,c); });
+      // right click
+      cell.addEventListener('contextmenu', (ev)=>{ ev.preventDefault(); minesRightClick(r,c); });
+      minesGrid.appendChild(cell);
+    }
+  }
+  minesStepsEl.textContent = minesState.steps;
+}
+
+function minesLeftClick(r,c){
+  const n = minesState.n;
+  if(minesState.revealed[r][c] || minesState.flagged[r][c]) return;
+  minesState.steps += 1;
+  if(minesState.board[r][c] === -1){
+    // reveal all bombs
+    for(let i=0;i<n;i++) for(let j=0;j<n;j++) if(minesState.board[i][j]===-1) minesState.revealed[i][j]=true;
+    renderMines(); alert('你踩到炸彈了!'); return;
+  }
+  // if number >0, reveal
+  if(minesState.board[r][c] > 0){ minesState.revealed[r][c]=true; renderMines(); if(checkMinesWin()) handleMinesWin(); return; }
+  // else 0 -> BFS/stack flood fill 4-dir
+  const stack = [[r,c]]; const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+  while(stack.length){
+    const [x,y] = stack.pop();
+    if(minesState.revealed[x][y]) continue;
+    minesState.revealed[x][y]=true;
+    if(minesState.board[x][y] === 0){
+      for(const [dr,dc] of dirs){ const nx=x+dr, ny=y+dc; if(nx>=0&&nx<n&&ny>=0&&ny<n && !minesState.revealed[nx][ny] && !minesState.flagged[nx][ny]){
+        if(minesState.board[nx][ny]===0) stack.push([nx,ny]); else minesState.revealed[nx][ny]=true;
+      }}
+    }
+  }
+  renderMines(); if(checkMinesWin()) handleMinesWin();
+}
+
+function minesRightClick(r,c){
+  if(minesState.revealed[r][c]) return; minesState.flagged[r][c] = !minesState.flagged[r][c]; minesState.steps += 1; renderMines();
+}
+
+function checkMinesWin(){
+  const n = minesState.n; for(let i=0;i<n;i++) for(let j=0;j<n;j++){ if(minesState.board[i][j] !== -1 && !minesState.revealed[i][j]) return false; } return true;
+}
+
+function handleMinesWin(){
+  const n = minesState.n; for(let i=0;i<n;i++) for(let j=0;j<n;j++) if(minesState.board[i][j]===-1) minesState.revealed[i][j]=true; renderMines(); alert('你贏了!');
+}
+
+function startMines(){
+  const n = parseInt(minesSize.value)||9; const b = parseInt(bombsInput.value)||10; minesState.n = n; minesState.bombs = b; minesState.board = makeMinesBoard(n,b);
+  minesState.revealed = Array.from({length:n}, ()=>Array(n).fill(false)); minesState.flagged = Array.from({length:n}, ()=>Array(n).fill(false)); minesState.steps = 0; renderMines();
+}
+
+
+// Maze generation (perfect maze using DFS recursive backtracker)
+function makeMaze(n){
+  // grid: 0 wall, 1 path
+  const grid = Array.from({length:n}, ()=>Array(n).fill(0));
+  // carve passages on odd coords
+  function inRange(r,c){ return r>0 && r<n-1 && c>0 && c<n-1 }
+  const stack = [];
+  // pick random odd start
+  const sr = Math.floor((Math.random()*(Math.floor((n-1)/2))) )*2+1;
+  const sc = Math.floor((Math.random()*(Math.floor((n-1)/2))) )*2+1;
+  grid[sr][sc]=1; stack.push([sr,sc]);
+  while(stack.length){
+    const [r,c] = stack[stack.length-1];
+    const nbrs = [];
+    [[0,2],[0,-2],[2,0],[-2,0]].forEach(([dr,dc])=>{
+      const nr=r+dr,nc=c+dc; if(inRange(nr,nc) && grid[nr][nc]===0) nbrs.push([nr,nc]);
+    });
+    if(nbrs.length===0){ stack.pop(); continue; }
+    const [nr,nc] = nbrs[Math.floor(Math.random()*nbrs.length)];
+    grid[(r+nr)/2][(c+nc)/2]=1; grid[nr][nc]=1; stack.push([nr,nc]);
+  }
+  // boundary stays 0
+  return grid;
+}
+
+function randomBoundary(n){
+  const pos=[];
+  for(let i=0;i<n;i++){ pos.push([0,i]); pos.push([n-1,i]); pos.push([i,0]); pos.push([i,n-1]); }
+  // remove corners
+  const corners = new Set(['0,0','0,'+(n-1),(n-1)+',0',(n-1)+','+(n-1)]);
+  const filtered = pos.filter(p=>!corners.has(p[0]+','+p[1]));
+  const s = filtered[Math.floor(Math.random()*filtered.length)];
+  let e = filtered[Math.floor(Math.random()*filtered.length)];
+  while(e[0]===s[0] && e[1]===s[1]) e = filtered[Math.floor(Math.random()*filtered.length)];
+  return [s,e];
+}
+
+function findPathBFS(grid, start, end){
+  const n=grid.length; const q=[]; const prev = new Map();
+  q.push(start); prev.set(start.join(','), null);
+  while(q.length){ const [r,c]=q.shift(); if(r===end[0] && c===end[1]) break;
+    [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc])=>{
+      const nr=r+dr,nc=c+dc; if(nr>=0 && nr<n && nc>=0 && nc<n && grid[nr][nc]===1 && !prev.has(nr+','+nc)){ prev.set(nr+','+nc,[r,c]); q.push([nr,nc]); }
+    });
+  }
+  if(!prev.has(end.join(','))) return null;
+  const path=[]; let cur=end.slice(); while(cur){ path.push(cur.slice()); const p = prev.get(cur.join(',')); cur = p; }
+  return path.reverse();
+}
+
+let state = {
+  grid:null, n:15, player:null, start:null, end:null, steps:0, cellSize:22
+};
+
+function renderMaze(){
+  const grid = state.grid; const n = state.n;
+  mazeEl.innerHTML='';
+  mazeEl.style.gridTemplateColumns = `repeat(${n}, ${state.cellSize}px)`;
+  mazeEl.style.gridTemplateRows = `repeat(${n}, ${state.cellSize}px)`;
+  for(let r=0;r<n;r++){
+    for(let c=0;c<n;c++){
+      const d=document.createElement('div'); d.className='cell';
+      if(r===state.player[0] && c===state.player[1]){ d.classList.add('path','player'); d.textContent='P'; }
+      else if(r===state.start[0] && c===state.start[1]){ d.classList.add('start'); d.textContent='S'; }
+      else if(r===state.end[0] && c===state.end[1]){ d.classList.add('end'); d.textContent='E'; }
+      else if(r===0 || r===n-1 || c===0 || c===n-1){ d.classList.add('boundary'); d.textContent='#'; }
+      else if(grid[r][c]===1){ d.classList.add('path'); d.textContent=''; }
+      else { d.classList.add('wall'); d.textContent=''; }
+      mazeEl.appendChild(d);
+    }
+  }
+  stepsEl.textContent = state.steps;
+}
+
+function ensureOpen(grid,pos){
+  const n=grid.length; const [r,c]=pos;
+  if(grid[r][c]===1) return; // already open
+  if(r===0) { if(n>1) grid[r+1][c]=1; }
+  else if(r===n-1){ grid[r-1][c]=1; }
+  else if(c===0){ grid[r][c+1]=1; }
+  else if(c===n-1){ grid[r][c-1]=1; }
+  grid[r][c]=1;
+}
+
+function startMaze(){
+  const n = parseInt(sizeInput.value)||15; state.n=n; state.grid = makeMaze(n);
+  const [s,e] = randomBoundary(n);
+  state.start = s; state.end = e; ensureOpen(state.grid,s); ensureOpen(state.grid,e);
+  state.player = state.start.slice(); state.steps=0; gamePanel.style.display='block'; readmePanel.style.display='none'; renderMaze();
+}
+
+// movement handling — count steps on every attempt
+function onKey(e){
+  if(!gamePanel || gamePanel.style.display==='none') return; // ignore when not in game
+  const key = e.key.toLowerCase(); if(key==='escape'){ gamePanel.style.display='none'; return; }
+  if(['arrowup','w'].includes(key)) move(-1,0);
+  else if(['arrowdown','s'].includes(key)) move(1,0);
+  else if(['arrowleft','a'].includes(key)) move(0,-1);
+  else if(['arrowright','d'].includes(key)) move(0,1);
+  else if(key==='q') { gamePanel.style.display='none'; }
+}
+
+function move(dr,dc){
+  const n=state.n; const nr = state.player[0]+dr, nc = state.player[1]+dc;
+  state.steps += 1; // count attempt
+  if(nr<0 || nr>=n || nc<0 || nc>=n){ renderMaze(); return; }
+  if(state.grid[nr][nc]===0){ renderMaze(); return; }
+  state.player = [nr,nc]; renderMaze();
+  if(state.player[0]===state.end[0] && state.player[1]===state.end[1]){
+    setTimeout(()=>{ alert('你到達終點！步數: '+state.steps); }, 10);
+  }
+}
+
+window.addEventListener('keydown', onKey);
+
+// init: show readme by default when opening menu
+openMaze.addEventListener('click', ()=>{ showReadme.click(); });
+
+</script>
+</body>
+</html>

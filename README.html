@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Maze Game - README</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans TC', 'Helvetica Neue', Arial; line-height:1.6; padding: 24px; background:#f7f7f7; color:#111 }
+    .container { max-width:900px; margin:0 auto; background:#fff; padding:24px; border-radius:8px; box-shadow:0 4px 18px rgba(0,0,0,0.08) }
+    pre { background:#0b0b0b; color:#e6e6e6; padding:12px; border-radius:6px; overflow:auto }
+    code { background:#f2f2f2; padding:2px 6px; border-radius:4px }
+    h1,h2,h3 { color:#1a1a1a }
+    .example { font-family: Consolas, 'Courier New', monospace }
+  </style>
+</head>
+<body>
+  <div class="container">
+<h1>Maze Game</h1>
+
+<p>一個簡單的文字版迷宮遊戲（Python）。本程式在 Windows 下支援即時鍵盤輸入（WASD 與方向鍵），並提供 demo 自動示範模式。</p>
+
+<h2>功能</h2>
+<ul>
+<li>指定大小 n，生成 n × n 的完美迷宮（perfect maze，任意兩格間僅有一條路徑）。</li>
+<li>邊界用 <code>#</code> 顯示，牆用 <code>█</code> 表示，通路為空白。</li>
+<li>隨機起點 <code>S</code> 與終點 <code>E</code>（會放在邊界上，且不會放在四個角落）。</li>
+<li>玩家用 <code>P</code> 表示，支援鍵盤 <code>W/A/S/D</code> 與方向鍵移動，按 <code>q</code> 離開。</li>
+<li>每次使用者操作（包含嘗試移動到牆或邊界失敗）都會計入步數並顯示於迷宮下方。</li>
+<li>支援顏色顯示（若已安裝 <code>colorama</code> 套件）。</li>
+</ul>
+
+<h2>快速開始</h2>
+<p>在 PowerShell（Windows）或一般終端機：</p>
+<pre><code class="example">python maze_game.py --size 7</code></pre>
+
+<p>自動示範（非互動）：</p>
+<pre><code class="example">python maze_game.py --size 7 --demo</code></pre>
+
+<p>參數說明：</p>
+<ul>
+<li><code>--size N</code> 或 <code>-n N</code>：設定迷宮大小為 N × N（預設 15，最小 3）。</li>
+<li><code>--demo</code>：以自動路徑示範方式顯示解。</li>
+</ul>
+
+<h2>鍵位</h2>
+<ul>
+<li>w 或 上方向鍵：上</li>
+<li>a 或 左方向鍵：左</li>
+<li>s 或 下方向鍵：下</li>
+<li>d 或 右方向鍵：右</li>
+<li>q：離開遊戲</li>
+</ul>
+
+<p>注意：在非 Windows 或 msvcrt 不可用時，互動模式會回退為 <code>input()</code> 讀行（需按 Enter）。</p>
+
+<h2>安裝建議（可選）</h2>
+<p>若想要有彩色輸出，建議安裝 <code>colorama</code>：</p>
+<pre><code class="example">pip install colorama</code></pre>
+
+<p>安裝後再次執行程式即可看到彩色化的 S/E/P、牆與邊界。</p>
+
+<h2>顯示說明</h2>
+<ul>
+<li><code>#</code>：邊界框</li>
+<li><code>█</code>：牆/障礙</li>
+<li>空格：可通行路徑</li>
+<li><code>S</code>：起點（邊界）</li>
+<li><code>E</code>：終點（邊界）</li>
+<li><code>P</code>：玩家目前位置</li>
+</ul>
+
+<p>步數會顯示為 <code>Steps: N</code>，且會在步數下多印一個空行以避免混淆顯示。</p>
+
+<h2>範例</h2>
+<pre><code class="example">python maze_game.py --size 7 --demo</code></pre>
+
+<p>輸出會類似：</p>
+<pre><code class="example"># # # # # # #
+#       █   #
+S   █   █   #
+#   █       #
+#   █ █ █   #
+#   █     P E
+# # # # # # #
+Steps: 10
+</code></pre>
+
+<h2>限制與未來改進</h2>
+<ul>
+<li>目前在非 Windows 平臺即時按鍵支援有限（可改用 <code>pynput</code> 或 <code>keyboard</code> 等套件以支援更多平台）。</li>
+<li>若想要更漂亮的 full-screen 介面，可改用 <code>curses</code>（Unix-like）或 <code>windows-curses</code>（Windows）實作。想要我幫你改成 full-screen 的 curses UI 嗎？</li>
+</ul>
+
+<hr>
+
+<p>檔案：<code>maze_game.py</code>（遊戲主程式）</p>
+  </div>
+</body>
+</html>
